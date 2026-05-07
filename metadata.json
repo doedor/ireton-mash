@@ -1,6 +1,6 @@
 {
-  "name": "ireton-mash",
-  "description": "rate faces to determine their rank",
+  "name": "FACEMASH",
+  "description": "the hit global leaderboard is making a comeback",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
