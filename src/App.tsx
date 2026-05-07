@@ -1183,7 +1183,7 @@ export default function App() {
     <div className="min-h-screen bg-white text-black font-mono selection:bg-black selection:text-white flex flex-col items-center p-4">
       <header className="mb-8 mt-4 md:mt-12 text-center max-w-2xl relative">
         <h1 className="text-5xl md:text-6xl font-black uppercase tracking-widest relative inline-block">
-          FACEMASH (iretonmash)
+          IRETONMASH
           <div className="absolute -top-4 -right-12 md:-top-6 md:-right-24 z-10">
             <div className="bg-white text-black px-3 py-2 border-4 border-black text-xs font-black uppercase transform rotate-12 hover:rotate-0 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group relative cursor-help">
               <span className="whitespace-nowrap">Coming Soon</span>
@@ -1218,7 +1218,7 @@ export default function App() {
                 <img 
                   src={currentPair[0].imageUrl} 
                   alt="Choice 1" 
-                  className="w-full h-full object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-200" 
+                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-all duration-200" 
                 />
                 <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
               </div>
@@ -1236,7 +1236,7 @@ export default function App() {
                 <img 
                   src={currentPair[1].imageUrl} 
                   alt="Choice 2" 
-                  className="w-full h-full object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-200" 
+                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-all duration-200" 
                 />
                 <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
               </div>
@@ -1317,7 +1317,7 @@ export default function App() {
                           <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
                           <div className="w-16 h-16 border-2 border-black shrink-0 overflow-hidden bg-gray-200">
                             {item.face ? (
-                              <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover grayscale" />
+                              <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">?</div>
                             )}
@@ -1376,7 +1376,7 @@ export default function App() {
                           <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
                           <div className="w-16 h-16 border-2 border-black shrink-0 overflow-hidden bg-gray-200">
                             {item.face ? (
-                              <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover grayscale" />
+                              <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">?</div>
                             )}
