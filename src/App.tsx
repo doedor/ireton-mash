@@ -421,6 +421,7 @@ export const faces: Face[] = [
   { id: 364, name: "Peiton Harris", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7922269_354.jpg?resize=200,200" },
   { id: 365, name: "Rylie Harris", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_8278430_434.jpg?resize=200,200" },
   { id: 366, name: "Ashlyn Harry", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7540548_982.jpg?resize=200,200" },
+  { id: 367, name: "Peter Hart", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_8294842_394.jpg?resize=200,200" },
   { id: 368, name: "Hannah Hawald", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7149105_382.jpg?resize=200,200" },
   { id: 369, name: "Abigail Hayden", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_8307346_673.jpg?resize=200,200" },
   { id: 370, name: "Addison Hayden", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7978424_576.jpg?resize=200,200" },
