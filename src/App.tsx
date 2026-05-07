@@ -4,9 +4,48 @@
  */
 
 import { useState, useEffect } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Globe, Home } from 'lucide-react';
+import { db, auth } from './firebase';
+import { doc, getDoc, setDoc, runTransaction, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 
 export type Gender = 'boy' | 'girl';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: any;
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 export interface Face {
   id: number;
@@ -965,6 +1004,9 @@ export default function App() {
   const [elos, setElos] = useState<Record<number, number>>({});
   const [currentPair, setCurrentPair] = useState<[Face, Face] | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('local');
+  const [globalElos, setGlobalElos] = useState<Record<number, number>>({});
+  const [isLoadingGlobal, setIsLoadingGlobal] = useState(false);
 
   // Load ELOs from local storage
   useEffect(() => {
@@ -985,6 +1027,25 @@ export default function App() {
       localStorage.setItem('facemash_elos', JSON.stringify(elos));
     }
   }, [elos]);
+
+  useEffect(() => {
+    if (showModal && leaderboardTab === 'global') {
+      setIsLoadingGlobal(true);
+      const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(100));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const newGlobalElos: Record<number, number> = {};
+        snapshot.forEach(docSnap => {
+           newGlobalElos[parseInt(docSnap.id, 10)] = docSnap.data().elo;
+        });
+        setGlobalElos(newGlobalElos);
+        setIsLoadingGlobal(false);
+      }, (err) => {
+        setIsLoadingGlobal(false);
+        handleFirestoreError(err, OperationType.LIST, 'faceStats');
+      });
+      return () => unsubscribe();
+    }
+  }, [showModal, leaderboardTab]);
 
   const [recentlySeenIds, setRecentlySeenIds] = useState<number[]>([]);
 
@@ -1046,6 +1107,46 @@ export default function App() {
     pickNewPair(filter);
   }, [filter]);
 
+  const updateGlobalElo = async (winnerId: number, loserId: number) => {
+    if (!auth.currentUser) return; // wait till signed in
+    const winnerRef = doc(db, 'faceStats', winnerId.toString());
+    const loserRef = doc(db, 'faceStats', loserId.toString());
+    
+    try {
+      await runTransaction(db, async (transaction) => {
+        const winnerDoc = await transaction.get(winnerRef);
+        const loserDoc = await transaction.get(loserRef);
+        
+        const currentWinnerElo = winnerDoc.exists() ? winnerDoc.data().elo : 1200;
+        const currentWinnerMatches = winnerDoc.exists() ? winnerDoc.data().matches : 0;
+        
+        const currentLoserElo = loserDoc.exists() ? loserDoc.data().elo : 1200;
+        const currentLoserMatches = loserDoc.exists() ? loserDoc.data().matches : 0;
+        
+        const expectedWinner = 1 / (1 + Math.pow(10, (currentLoserElo - currentWinnerElo) / 400));
+        const expectedLoser = 1 / (1 + Math.pow(10, (currentWinnerElo - currentLoserElo) / 400));
+        
+        const k = 32;
+        const newGlobalWinnerElo = Math.round(currentWinnerElo + k * (1 - expectedWinner));
+        const newGlobalLoserElo = Math.round(currentLoserElo + k * (0 - expectedLoser));
+        
+        if (!winnerDoc.exists()) {
+          transaction.set(winnerRef, { elo: newGlobalWinnerElo, matches: currentWinnerMatches + 1, updatedAt: serverTimestamp() });
+        } else {
+          transaction.update(winnerRef, { elo: newGlobalWinnerElo, matches: currentWinnerMatches + 1, updatedAt: serverTimestamp() });
+        }
+        
+        if (!loserDoc.exists()) {
+          transaction.set(loserRef, { elo: newGlobalLoserElo, matches: currentLoserMatches + 1, updatedAt: serverTimestamp() });
+        } else {
+          transaction.update(loserRef, { elo: newGlobalLoserElo, matches: currentLoserMatches + 1, updatedAt: serverTimestamp() });
+        }
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'faceStats');
+    }
+  }
+
   const handleChoice = (winnerId: number, loserId: number) => {
     const winnerElo = elos[winnerId] || 1200;
     const loserElo = elos[loserId] || 1200;
@@ -1062,6 +1163,8 @@ export default function App() {
       [winnerId]: newWinnerElo,
       [loserId]: newLoserElo
     }));
+    
+    updateGlobalElo(winnerId, loserId);
 
     // Keep the winner on screen for the next round
     pickNewPair(filter, winnerId);
@@ -1140,60 +1243,124 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-white border-8 border-black p-8 md:p-12 max-w-2xl w-full shadow-[16px_16px_0px_0px_rgba(255,255,255,1)] relative max-h-[90vh] overflow-y-auto">
             <button 
-              className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center border-4 border-black font-black text-xl hover:bg-black hover:text-white transition-colors"
+              className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center border-4 border-black font-black text-xl hover:bg-black hover:text-white transition-colors z-10"
               onClick={() => setShowModal(false)}
             >
               X
             </button>
-            <div className="flex flex-col md:flex-row md:items-end justify-between border-b-4 border-black pb-4 mb-8 gap-4 pr-16 md:pr-0">
+            <div className="flex flex-col md:flex-row md:items-end justify-between border-b-4 border-black pb-4 mb-6 gap-4 pr-16 md:pr-0">
               <div>
                 <h2 className="text-5xl font-black uppercase">Leaderboard</h2>
-                <p className="text-sm font-bold text-gray-500 uppercase mt-2">Saved locally to your device</p>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => setLeaderboardTab('local')}
+                    className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'local' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
+                  >
+                    <Home size={18} strokeWidth={3} /> Local
+                  </button>
+                  <button
+                    onClick={() => setLeaderboardTab('global')}
+                    className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'global' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
+                  >
+                    <Globe size={18} strokeWidth={3} /> Global
+                  </button>
+                </div>
               </div>
-              <button 
-                onClick={handleResetLeaderboard}
-                className="flex items-center gap-2 border-4 border-black bg-white text-black px-4 py-2 hover:bg-black hover:text-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black shrink-0"
-                title="Reset Leaderboard"
-              >
-                <RotateCcw size={20} strokeWidth={3} />
-                Reset
-              </button>
+              
+              {leaderboardTab === 'local' && (
+                <button 
+                  onClick={handleResetLeaderboard}
+                  className="flex items-center gap-2 border-4 border-black bg-white text-black px-4 py-2 hover:bg-black hover:text-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black shrink-0"
+                  title="Reset Leaderboard"
+                >
+                  <RotateCcw size={20} strokeWidth={3} />
+                  Reset
+                </button>
+              )}
             </div>
             
-            {Object.keys(elos).length === 0 ? (
-              <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
-                No rankings yet. Start mashing!
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(elos)
-                  .map(([idStr, elo]) => {
-                    const id = parseInt(idStr, 10);
-                    const face = faces.find(f => f.id === id);
-                    return { id, elo, face };
-                  })
-                  .sort((a, b) => b.elo - a.elo)
-                  .map((item, index) => (
-                    <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4">
-                      <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
-                      <div className="w-16 h-16 border-2 border-black shrink-0 overflow-hidden bg-gray-200">
-                        {item.face ? (
-                          <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover grayscale" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">?</div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xl font-bold uppercase truncate">{item.face ? item.face.name : `Face #${item.id}`}</div>
-                        <div className="text-sm font-bold text-gray-500 uppercase">{item.face ? item.face.gender : 'Unknown' }</div>
-                      </div>
-                      <div className="text-2xl font-black shrink-0">
-                        {item.elo} <span className="text-sm text-gray-500">ELO</span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
+            {leaderboardTab === 'local' && (
+              <>
+                <p className="text-sm font-bold text-gray-500 uppercase mb-4">Saved locally to your device</p>
+                {Object.keys(elos).length === 0 ? (
+                  <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
+                    No rankings yet. Start mashing!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {Object.entries(elos)
+                      .map(([idStr, elo]) => {
+                        const id = parseInt(idStr, 10);
+                        const face = faces.find(f => f.id === id);
+                        return { id, elo, face };
+                      })
+                      .sort((a, b) => b.elo - a.elo)
+                      .map((item, index) => (
+                        <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4">
+                          <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
+                          <div className="w-16 h-16 border-2 border-black shrink-0 overflow-hidden bg-gray-200">
+                            {item.face ? (
+                              <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover grayscale" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">?</div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xl font-bold uppercase truncate">{item.face ? item.face.name : `Face #${item.id}`}</div>
+                            <div className="text-sm font-bold text-gray-500 uppercase">{item.face ? item.face.gender : 'Unknown' }</div>
+                          </div>
+                          <div className="text-2xl font-black shrink-0">
+                            {item.elo} <span className="text-sm text-gray-500">ELO</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
             )}
+
+            {leaderboardTab === 'global' && (
+              <>
+                <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide</p>
+                {isLoadingGlobal && Object.keys(globalElos).length === 0 ? (
+                  <p className="text-xl font-bold uppercase animate-pulse">Loading global data...</p>
+                ) : Object.keys(globalElos).length === 0 ? (
+                  <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
+                    No global rankings yet. Be the first!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {Object.entries(globalElos)
+                      .map(([idStr, elo]) => {
+                        const id = parseInt(idStr, 10);
+                        const face = faces.find(f => f.id === id);
+                        return { id, elo, face };
+                      })
+                      .sort((a, b) => b.elo - a.elo)
+                      .map((item, index) => (
+                        <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4 bg-gray-50">
+                          <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
+                          <div className="w-16 h-16 border-2 border-black shrink-0 overflow-hidden bg-gray-200">
+                            {item.face ? (
+                              <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover grayscale" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">?</div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xl font-bold uppercase truncate">{item.face ? item.face.name : `Face #${item.id}`}</div>
+                            <div className="text-sm font-bold text-gray-500 uppercase">{item.face ? item.face.gender : 'Unknown' }</div>
+                          </div>
+                          <div className="text-2xl font-black shrink-0">
+                            {item.elo} <span className="text-sm text-gray-500">ELO</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
+
           </div>
         </div>
       )}
