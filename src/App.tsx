@@ -1183,7 +1183,7 @@ export default function App() {
     <div className="min-h-screen bg-white text-black font-mono selection:bg-black selection:text-white flex flex-col items-center p-4">
       <header className="mb-8 mt-4 md:mt-12 text-center max-w-2xl relative">
         <h1 className="text-5xl md:text-6xl font-black uppercase tracking-widest relative inline-block">
-          IRETONMASH
+          FACEMASH (iretonmash)
           <div className="absolute -top-4 -right-12 md:-top-6 md:-right-24 z-10">
             <div className="bg-white text-black px-3 py-2 border-4 border-black text-xs font-black uppercase transform rotate-12 hover:rotate-0 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group relative cursor-help">
               <span className="whitespace-nowrap">Coming Soon</span>
