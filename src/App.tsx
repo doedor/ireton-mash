@@ -1135,7 +1135,7 @@ export default function App() {
             >
               X
             </button>
-            <h2 className="text-5xl font-black mb-8 uppercase border-b-4 border-black pb-4 inline-block">Leaderboard</h2>
+            <h2 className="text-4xl font-black mb-8 uppercase border-b-4 border-black pb-4 inline-block">your leaderboard (global coming soon)</h2>
             
             {Object.keys(elos).length === 0 ? (
               <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
