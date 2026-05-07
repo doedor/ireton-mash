@@ -92,22 +92,51 @@ export default function App() {
     }
   }, [elos]);
 
-  // Pick a new pair
-  const pickNewPair = (currentFilter: Filter) => {
-    let available = faces;
-    if (currentFilter === 'boys') available = faces.filter(f => f.gender === 'boy');
-    if (currentFilter === 'girls') available = faces.filter(f => f.gender === 'girl');
+  const [recentlySeenIds, setRecentlySeenIds] = useState<number[]>([]);
 
-    if (available.length < 2) return;
+  // Pick a new pair or a new opponent for the winner
+  const pickNewPair = (currentFilter: Filter, winnerId?: number) => {
+    let pool = faces;
+    if (currentFilter === 'boys') pool = faces.filter(f => f.gender === 'boy');
+    if (currentFilter === 'girls') pool = faces.filter(f => f.gender === 'girl');
 
-    // Random pick
-    const idx1 = Math.floor(Math.random() * available.length);
-    let idx2 = Math.floor(Math.random() * available.length);
-    while (idx1 === idx2) {
-      idx2 = Math.floor(Math.random() * available.length);
+    if (pool.length < 2) return;
+
+    if (winnerId !== undefined) {
+      // Find the winner face object
+      const winnerFace = pool.find(f => f.id === winnerId);
+      if (!winnerFace) {
+        // If winner isn't in current pool (e.g. filter changed), pick a brand new pair
+        return pickNewPair(currentFilter);
+      }
+
+      // Pick a new opponent from the pool who wasn't recently seen and isn't the winner
+      const potentialOpponents = pool.filter(f => f.id !== winnerId && !recentlySeenIds.includes(f.id));
+      const candidates = potentialOpponents.length > 0 ? potentialOpponents : pool.filter(f => f.id !== winnerId);
+      
+      const newOpponent = candidates[Math.floor(Math.random() * candidates.length)];
+      
+      // Keep winner, but randomize their position (left or right) for a fresh feel
+      const nextPair: [Face, Face] = Math.random() > 0.5 ? [winnerFace, newOpponent] : [newOpponent, winnerFace];
+      setCurrentPair(nextPair);
+
+      // Track recently seen faces (last 24 IDs)
+      setRecentlySeenIds(prev => [...prev, newOpponent.id].slice(-24));
+    } else {
+      // Logic for picking a completely brand new pair
+      const available = pool.filter(f => !recentlySeenIds.includes(f.id));
+      const finalCandidates = available.length >= 2 ? available : pool;
+
+      const idx1 = Math.floor(Math.random() * finalCandidates.length);
+      let idx2 = Math.floor(Math.random() * finalCandidates.length);
+      while (idx1 === idx2 && finalCandidates.length > 1) {
+        idx2 = Math.floor(Math.random() * finalCandidates.length);
+      }
+
+      const nextPair: [Face, Face] = [finalCandidates[idx1], finalCandidates[idx2]];
+      setCurrentPair(nextPair);
+      setRecentlySeenIds(prev => [...prev, nextPair[0].id, nextPair[1].id].slice(-24));
     }
-
-    setCurrentPair([available[idx1], available[idx2]]);
   };
 
   // On filter change, pick new pair
@@ -132,7 +161,8 @@ export default function App() {
       [loserId]: newLoserElo
     }));
 
-    pickNewPair(filter);
+    // Keep the winner on screen for the next round
+    pickNewPair(filter, winnerId);
   };
 
   return (
