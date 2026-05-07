@@ -997,10 +997,10 @@ export const faces: Face[] = [
   { id: 940, name: "Zachary Zottola", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7979825_678.jpg?resize=200,200" }
 ];
 
-type Filter = 'boys' | 'girls' | 'both';
+type Filter = 'boys' | 'girls';
 
 export default function App() {
-  const [filter, setFilter] = useState<Filter>('both');
+  const [filter, setFilter] = useState<Filter>('boys');
   const [elos, setElos] = useState<Record<number, number>>({});
   const [currentPair, setCurrentPair] = useState<[Face, Face] | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -1032,7 +1032,7 @@ export default function App() {
         console.error('Failed to parse elos', e);
       }
     }
-    pickNewPair('both');
+    pickNewPair('boys');
   }, []);
 
   // Save to local storage whenever Elos change
@@ -1168,8 +1168,8 @@ export default function App() {
       [loserId]: newLoserElo
     }));
     
-    // Only update global leaderboard if 0.5 seconds have passed since the last pick
-    if (lastPickTime === 0 || timeSinceLastPick >= 500) {
+    // Only update global leaderboard if 2 seconds have passed since the last pick
+    if (lastPickTime === 0 || timeSinceLastPick >= 2000) {
       updateGlobalElo(winnerId, loserId);
     }
     
@@ -1196,7 +1196,7 @@ export default function App() {
       </header>
 
       <div className="mb-12 flex flex-wrap justify-center gap-4 border-4 border-black p-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white">
-        {(['girls', 'both', 'boys'] as Filter[]).map(f => (
+        {(['girls', 'boys'] as Filter[]).map(f => (
           <button 
             key={f}
             className={`px-6 py-2 uppercase font-black text-lg border-4 border-transparent hover:border-black transition-all ${filter === f ? 'bg-black text-white border-black shadow-inner' : 'bg-white'}`}
