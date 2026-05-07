@@ -1128,25 +1128,49 @@ export default function App() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white border-8 border-black p-8 md:p-12 max-w-2xl w-full shadow-[16px_16px_0px_0px_rgba(255,255,255,1)] relative">
+          <div className="bg-white border-8 border-black p-8 md:p-12 max-w-2xl w-full shadow-[16px_16px_0px_0px_rgba(255,255,255,1)] relative max-h-[90vh] overflow-y-auto">
             <button 
               className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center border-4 border-black font-black text-xl hover:bg-black hover:text-white transition-colors"
               onClick={() => setShowModal(false)}
             >
               X
             </button>
-            <h2 className="text-5xl font-black mb-8 uppercase border-b-4 border-black pb-4 inline-block">Coming Soon</h2>
-            <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
-               Personal ranking algorithm is coming soon.
-            </p>
-            <ul className="text-lg font-bold uppercase space-y-4 list-disc list-inside">
-              <li>See names of all faces</li>
-              <li>Global Leaderboard</li>
-              <li>Custom Elo Stats</li>
-            </ul>
-            <div className="mt-12 bg-black text-white p-4 text-center font-black uppercase tracking-widest">
-              Please check back later
-            </div>
+            <h2 className="text-5xl font-black mb-8 uppercase border-b-4 border-black pb-4 inline-block">Leaderboard</h2>
+            
+            {Object.keys(elos).length === 0 ? (
+              <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
+                No rankings yet. Start mashing!
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(elos)
+                  .map(([idStr, elo]) => {
+                    const id = parseInt(idStr, 10);
+                    const face = faces.find(f => f.id === id);
+                    return { id, elo, face };
+                  })
+                  .sort((a, b) => b.elo - a.elo)
+                  .map((item, index) => (
+                    <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4">
+                      <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
+                      <div className="w-16 h-16 border-2 border-black shrink-0 overflow-hidden bg-gray-200">
+                        {item.face ? (
+                          <img src={item.face.imageUrl} alt={item.face.name} className="w-full h-full object-cover grayscale" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xl font-bold text-gray-500">?</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xl font-bold uppercase truncate">{item.face ? item.face.name : `Face #${item.id}`}</div>
+                        <div className="text-sm font-bold text-gray-500 uppercase">{item.face ? item.face.gender : 'Unknown' }</div>
+                      </div>
+                      <div className="text-2xl font-black shrink-0">
+                        {item.elo} <span className="text-sm text-gray-500">ELO</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}
