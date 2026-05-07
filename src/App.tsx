@@ -4,6 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
+import { RotateCcw } from 'lucide-react';
+
 export type Gender = 'boy' | 'girl';
 
 export interface Face {
@@ -12,9 +14,9 @@ export interface Face {
   gender: Gender;
   imageUrl: string;
 }
-
+//this is placeholder data. the number of ids go up to 940
 export const faces: Face[] = [
-  { id: 1, name: "Micah Abalahin", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7643903_120.jpg?resize=200,200" },
+    { id: 1, name: "Micah Abalahin", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7643903_120.jpg?resize=200,200" },
   { id: 2, name: "Erika Abegg", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7212241_93.jpg?resize=200,200" },
   { id: 3, name: "Ingrid Abegg", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7193710_726.jpg?resize=200,200" },
   { id: 4, name: "Elie Christopher Abogo", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7280449_997.jpg?resize=200,200" },
@@ -986,6 +988,14 @@ export default function App() {
 
   const [recentlySeenIds, setRecentlySeenIds] = useState<number[]>([]);
 
+  const handleResetLeaderboard = () => {
+    if (window.confirm("Are you sure you want to reset your leaderboard? All local data will be deleted.")) {
+      setElos({});
+      localStorage.removeItem('facemash_elos');
+      setRecentlySeenIds([]);
+    }
+  };
+
   // Pick a new pair or a new opponent for the winner
   const pickNewPair = (currentFilter: Filter, winnerId?: number) => {
     let pool = faces;
@@ -1135,7 +1145,20 @@ export default function App() {
             >
               X
             </button>
-            <h2 className="text-4xl font-black mb-8 uppercase border-b-4 border-black pb-4 inline-block">your leaderboard (global coming soon)</h2>
+            <div className="flex flex-col md:flex-row md:items-end justify-between border-b-4 border-black pb-4 mb-8 gap-4 pr-16 md:pr-0">
+              <div>
+                <h2 className="text-5xl font-black uppercase">Leaderboard</h2>
+                <p className="text-sm font-bold text-gray-500 uppercase mt-2">Saved locally to your device</p>
+              </div>
+              <button 
+                onClick={handleResetLeaderboard}
+                className="flex items-center gap-2 border-4 border-black bg-white text-black px-4 py-2 hover:bg-black hover:text-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black shrink-0"
+                title="Reset Leaderboard"
+              >
+                <RotateCcw size={20} strokeWidth={3} />
+                Reset
+              </button>
+            </div>
             
             {Object.keys(elos).length === 0 ? (
               <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
