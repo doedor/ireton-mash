@@ -1,6 +1,6 @@
 {
-  "name": "iretonmash",
-  "description": "Rate faces to determine their ELO! A minimalistic, brutalist take on the classic app.",
+  "name": "ireton-mash",
+  "description": "rate faces to determine their rank",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
