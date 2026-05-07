@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "faceStats": {
+      "title": "Face Stats",
+      "description": "Global ELO stats for a single face.",
+      "type": "object",
+      "properties": {
+        "elo": { "type": "number" },
+        "matches": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["elo", "matches"]
+    }
+  },
+  "firestore": {
+    "/faceStats/{faceId}": {
+      "schema": "faceStats",
+      "description": "Global ELO statistics for a specific face ID."
+    }
+  }
+}
