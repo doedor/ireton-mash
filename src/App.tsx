@@ -1007,6 +1007,20 @@ export default function App() {
   const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('local');
   const [globalElos, setGlobalElos] = useState<Record<number, number>>({});
   const [isLoadingGlobal, setIsLoadingGlobal] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        setAuthError(null);
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Load ELOs from local storage
   useEffect(() => {
@@ -1030,7 +1044,12 @@ export default function App() {
 
   useEffect(() => {
     if (showModal && leaderboardTab === 'global') {
+      if (!isAuthenticated) {
+        setAuthError("Anonymous Auth is not enabled. See instructions below.");
+        return;
+      }
       setIsLoadingGlobal(true);
+      setAuthError(null);
       const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(100));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const newGlobalElos: Record<number, number> = {};
@@ -1041,11 +1060,14 @@ export default function App() {
         setIsLoadingGlobal(false);
       }, (err) => {
         setIsLoadingGlobal(false);
-        handleFirestoreError(err, OperationType.LIST, 'faceStats');
+        setAuthError(err instanceof Error ? err.message : String(err));
+        setTimeout(() => {
+          handleFirestoreError(err, OperationType.LIST, 'faceStats');
+        }, 0);
       });
       return () => unsubscribe();
     }
-  }, [showModal, leaderboardTab]);
+  }, [showModal, leaderboardTab, isAuthenticated]);
 
   const [recentlySeenIds, setRecentlySeenIds] = useState<number[]>([]);
 
@@ -1302,14 +1324,18 @@ export default function App() {
                 <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide</p>
                 {authError ? (
                   <div className="border-4 border-black p-6 bg-yellow-100 mb-6">
-                    <p className="text-xl font-bold uppercase mb-4">Action Required</p>
+                    <p className="text-xl font-bold uppercase mb-4">Leaderboard Error</p>
                     <p className="font-medium mb-4">
-                      The global leaderboard requires Anonymous Authentication to be enabled. To fix this:
+                      {authError.includes('Missing or insufficient') || authError.includes('Anonymous Auth') 
+                        ? "Authentication or permission issue prevented loading global data."
+                        : `Unable to load data: ${authError}`}
+                    </p>
+                    <p className="font-medium mb-4">
+                      Developer Troubleshooting:
                     </p>
                     <ol className="list-decimal list-inside font-bold space-y-2 mb-4">
-                      <li>Go to your <a href="https://console.firebase.google.com/project/ai-studio-applet-webapp-5b4dd/authentication/providers" target="_blank" rel="noreferrer" className="underline hover:bg-black hover:text-white px-1">Firebase Console</a></li>
-                      <li>Click <strong>Add new provider</strong></li>
-                      <li>Select <strong>Anonymous</strong>, enable it, and click <strong>Save</strong></li>
+                      <li>Ensure Anonymous Authentication is enabled in the <a href="https://console.firebase.google.com/project/ai-studio-applet-webapp-5b4dd/authentication/providers" target="_blank" rel="noreferrer" className="underline hover:bg-black hover:text-white px-1">Firebase Console</a></li>
+                      <li>Check console for permission or index errors</li>
                       <li>Refresh this page</li>
                     </ol>
                   </div>
