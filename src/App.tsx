@@ -1338,7 +1338,7 @@ export default function App() {
 
             {leaderboardTab === 'global' && (
               <>
-                <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide</p>
+                <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide. The more you choose, the more accurate the rankings</p>
                 {authError ? (
                   <div className="border-4 border-black p-6 bg-yellow-100 mb-6">
                     <p className="text-xl font-bold uppercase mb-4">Leaderboard Error</p>
