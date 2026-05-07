@@ -1056,49 +1056,27 @@ export default function App() {
     }
   };
 
-  // Pick a new pair or a new opponent for the winner
-  const pickNewPair = (currentFilter: Filter, winnerId?: number) => {
+  // Pick a new pair
+  const pickNewPair = (currentFilter: Filter) => {
     let pool = faces;
     if (currentFilter === 'boys') pool = faces.filter(f => f.gender === 'boy');
     if (currentFilter === 'girls') pool = faces.filter(f => f.gender === 'girl');
 
     if (pool.length < 2) return;
 
-    if (winnerId !== undefined) {
-      // Find the winner face object
-      const winnerFace = pool.find(f => f.id === winnerId);
-      if (!winnerFace) {
-        // If winner isn't in current pool (e.g. filter changed), pick a brand new pair
-        return pickNewPair(currentFilter);
-      }
+    // Logic for picking a completely brand new pair
+    const available = pool.filter(f => !recentlySeenIds.includes(f.id));
+    const finalCandidates = available.length >= 2 ? available : pool;
 
-      // Pick a new opponent from the pool who wasn't recently seen and isn't the winner
-      const potentialOpponents = pool.filter(f => f.id !== winnerId && !recentlySeenIds.includes(f.id));
-      const candidates = potentialOpponents.length > 0 ? potentialOpponents : pool.filter(f => f.id !== winnerId);
-      
-      const newOpponent = candidates[Math.floor(Math.random() * candidates.length)];
-      
-      // Keep winner, but randomize their position (left or right) for a fresh feel
-      const nextPair: [Face, Face] = Math.random() > 0.5 ? [winnerFace, newOpponent] : [newOpponent, winnerFace];
-      setCurrentPair(nextPair);
-
-      // Track recently seen faces (last 24 IDs)
-      setRecentlySeenIds(prev => [...prev, newOpponent.id].slice(-24));
-    } else {
-      // Logic for picking a completely brand new pair
-      const available = pool.filter(f => !recentlySeenIds.includes(f.id));
-      const finalCandidates = available.length >= 2 ? available : pool;
-
-      const idx1 = Math.floor(Math.random() * finalCandidates.length);
-      let idx2 = Math.floor(Math.random() * finalCandidates.length);
-      while (idx1 === idx2 && finalCandidates.length > 1) {
-        idx2 = Math.floor(Math.random() * finalCandidates.length);
-      }
-
-      const nextPair: [Face, Face] = [finalCandidates[idx1], finalCandidates[idx2]];
-      setCurrentPair(nextPair);
-      setRecentlySeenIds(prev => [...prev, nextPair[0].id, nextPair[1].id].slice(-24));
+    const idx1 = Math.floor(Math.random() * finalCandidates.length);
+    let idx2 = Math.floor(Math.random() * finalCandidates.length);
+    while (idx1 === idx2 && finalCandidates.length > 1) {
+      idx2 = Math.floor(Math.random() * finalCandidates.length);
     }
+
+    const nextPair: [Face, Face] = [finalCandidates[idx1], finalCandidates[idx2]];
+    setCurrentPair(nextPair);
+    setRecentlySeenIds(prev => [...prev, nextPair[0].id, nextPair[1].id].slice(-24));
   };
 
   // On filter change, pick new pair
@@ -1165,8 +1143,8 @@ export default function App() {
     
     updateGlobalElo(winnerId, loserId);
 
-    // Keep the winner on screen for the next round
-    pickNewPair(filter, winnerId);
+    // Pick a new completely random pair
+    pickNewPair(filter);
   };
 
   return (
@@ -1321,7 +1299,20 @@ export default function App() {
             {leaderboardTab === 'global' && (
               <>
                 <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide</p>
-                {isLoadingGlobal && Object.keys(globalElos).length === 0 ? (
+                {authError ? (
+                  <div className="border-4 border-black p-6 bg-yellow-100 mb-6">
+                    <p className="text-xl font-bold uppercase mb-4">Action Required</p>
+                    <p className="font-medium mb-4">
+                      The global leaderboard requires Anonymous Authentication to be enabled. To fix this:
+                    </p>
+                    <ol className="list-decimal list-inside font-bold space-y-2 mb-4">
+                      <li>Go to your <a href="https://console.firebase.google.com/project/ai-studio-applet-webapp-5b4dd/authentication/providers" target="_blank" rel="noreferrer" className="underline hover:bg-black hover:text-white px-1">Firebase Console</a></li>
+                      <li>Click <strong>Add new provider</strong></li>
+                      <li>Select <strong>Anonymous</strong>, enable it, and click <strong>Save</strong></li>
+                      <li>Refresh this page</li>
+                    </ol>
+                  </div>
+                ) : isLoadingGlobal && Object.keys(globalElos).length === 0 ? (
                   <p className="text-xl font-bold uppercase animate-pulse">Loading global data...</p>
                 ) : Object.keys(globalElos).length === 0 ? (
                   <p className="text-2xl font-bold uppercase leading-relaxed mb-6">
