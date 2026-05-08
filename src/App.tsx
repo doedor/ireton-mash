@@ -1280,7 +1280,7 @@ export default function App() {
                       onClick={() => setLeaderboardTab('local')}
                       className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'local' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
                     >
-                      <Home size={18} strokeWidth={3} /> Local
+                      <Home size={18} strokeWidth={3} /> Personal
                     </button>
                     <button
                       onClick={() => setLeaderboardTab('global')}
