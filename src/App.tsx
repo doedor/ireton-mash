@@ -1170,8 +1170,8 @@ export default function App() {
       [loserId]: newLoserElo
     }));
     
-    // Only update global leaderboard if 2 seconds have passed since the last pick
-    if (lastPickTime === 0 || timeSinceLastPick >= 2000) {
+    // Only update global leaderboard if 0.25 seconds have passed since the last pick
+    if (lastPickTime === 0 || timeSinceLastPick >= 250) {
       updateGlobalElo(winnerId, loserId);
     }
     
