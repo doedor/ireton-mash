@@ -1212,7 +1212,7 @@ export default function App() {
           FACEMASH (iretonmash)
           <div className="absolute -top-4 -right-12 md:-top-6 md:-right-24 z-10">
             <div className="bg-white text-black px-3 py-2 border-4 border-black text-xs font-black uppercase transform rotate-12 hover:rotate-0 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group relative cursor-help">
-              <span className="whitespace-nowrap">Coming Soon</span>
+              <span className="whitespace-nowrap">👉Soon</span>
               <div className="absolute top-full mt-2 -right-4 w-64 bg-black border-4 border-black text-white p-3 text-xs normal-case font-bold hidden group-hover:block text-left z-20 shadow-[4px_4px_0px_0px_rgba(200,200,200,1)]">
                 FACEMASH is coming back and will be expanding soon with the goal to create the premier global leaderboard!
               </div>
