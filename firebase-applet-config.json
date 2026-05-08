@@ -1,10 +1,10 @@
 {
-  "projectId": "ai-studio-applet-webapp-5b4dd",
-  "appId": "1:314688866369:web:11b24034de8d50eeab9ec0",
-  "apiKey": "AIzaSyCs0wWfCf4_HNHKiI_7YJc8Z5NIPzu1tcA",
-  "authDomain": "ai-studio-applet-webapp-5b4dd.firebaseapp.com",
+  "projectId": "facemash-14c56",
+  "appId": "1:991231126199:web:3ba302104bea7457b4bb32",
+  "apiKey": "AIzaSyAA5Oc_ZMSRjnPdn08wBjffWnaDuU3oDqw",
+  "authDomain": "facemash-14c56.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-d2556ca2-f7ac-44c7-815b-775b9939a4fd",
-  "storageBucket": "ai-studio-applet-webapp-5b4dd.firebasestorage.app",
-  "messagingSenderId": "314688866369",
+  "storageBucket": "facemash-14c56.firebasestorage.app",
+  "messagingSenderId": "991231126199",
   "measurementId": ""
 }
