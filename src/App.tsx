@@ -498,7 +498,7 @@ export const faces: Face[] = [
   { id: 441, name: "Ryan Keefe", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7710041_678.jpg?resize=200,200" },
   { id: 442, name: "Sofia Keefer", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_8270991_295.jpg?resize=200,200" },
   { id: 443, name: "Ruth Keller", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7566187_285.jpg?resize=200,200" },
-  { id: 444, name: "Declan Kelly", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7937633_562.jpg?resize=200,200" },
+  { id: 444, name: "Declan Kelly", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7937633_562.jpg?resize=200,200" },
   { id: 445, name: "Mary Kennedy", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7969630_928.jpg?resize=200,200" },
   { id: 446, name: "Terrence Kennedy", gender: "boy", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7543304_245.jpg?resize=200,200" },
   { id: 447, name: "Liliana Kennelly", gender: "girl", imageUrl: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/847/user/large_user_7265999_219.jpg?resize=200,200" },
@@ -1007,7 +1007,14 @@ export default function App() {
   const [showMathModal, setShowMathModal] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('local');
   const [leaderboardGender, setLeaderboardGender] = useState<Filter>('boys');
-  const [globalElos, setGlobalElos] = useState<Record<number, number>>({});
+  const [globalElos, setGlobalElos] = useState<Record<number, number>>(() => {
+    const cached = localStorage.getItem('facemash_global_elos');
+    return cached ? JSON.parse(cached) : {};
+  });
+  const [lastGlobalFetchTime, setLastGlobalFetchTime] = useState<number>(() => {
+    const cached = localStorage.getItem('facemash_global_fetch_time');
+    return cached ? parseInt(cached, 10) : 0;
+  });
   const [isLoadingGlobal, setIsLoadingGlobal] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -1050,6 +1057,13 @@ export default function App() {
         setAuthError("Anonymous Auth is not enabled. See instructions below.");
         return;
       }
+
+      const now = Date.now();
+      // Only fetch if we haven't fetched in the last 5 minutes (300,000 ms)
+      if (now - lastGlobalFetchTime < 300000 && Object.keys(globalElos).length > 0) {
+        return; // Use cached data
+      }
+
       setIsLoadingGlobal(true);
       setAuthError(null);
       const fetchGlobalLeaderboard = async () => {
@@ -1061,6 +1075,12 @@ export default function App() {
             newGlobalElos[parseInt(docSnap.id, 10)] = docSnap.data().elo;
           });
           setGlobalElos(newGlobalElos);
+          localStorage.setItem('facemash_global_elos', JSON.stringify(newGlobalElos));
+          
+          const nowTime = Date.now();
+          setLastGlobalFetchTime(nowTime); // Update cache time
+          localStorage.setItem('facemash_global_fetch_time', nowTime.toString());
+          
           setIsLoadingGlobal(false);
         } catch (err) {
           setIsLoadingGlobal(false);
@@ -1073,7 +1093,7 @@ export default function App() {
       
       fetchGlobalLeaderboard();
     }
-  }, [showModal, leaderboardTab, isAuthenticated]);
+  }, [showModal, leaderboardTab, isAuthenticated, lastGlobalFetchTime, globalElos]);
 
   const [recentlySeenIds, setRecentlySeenIds] = useState<number[]>([]);
   const [lastPickTime, setLastPickTime] = useState<number>(0);
@@ -1280,7 +1300,7 @@ export default function App() {
                       onClick={() => setLeaderboardTab('local')}
                       className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'local' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
                     >
-                      <Home size={18} strokeWidth={3} /> Personal
+                      <Home size={18} strokeWidth={3} /> Local
                     </button>
                     <button
                       onClick={() => setLeaderboardTab('global')}
