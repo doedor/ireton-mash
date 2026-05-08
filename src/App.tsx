@@ -1096,6 +1096,7 @@ export default function App() {
   }, [showModal, leaderboardTab, isAuthenticated, lastGlobalFetchTime, globalElos]);
 
   const [recentlySeenIds, setRecentlySeenIds] = useState<number[]>([]);
+  const [pendingMatches, setPendingMatches] = useState<Array<{winnerId: number, loserId: number}>>([]);
   const [lastPickTime, setLastPickTime] = useState<number>(0);
 
   const handleResetLeaderboard = () => {
@@ -1134,40 +1135,50 @@ export default function App() {
     pickNewPair(filter);
   }, [filter]);
 
-  const updateGlobalElo = async (winnerId: number, loserId: number) => {
-    if (!auth.currentUser) return; // wait till signed in
-    const winnerRef = doc(db, 'faceStats', winnerId.toString());
-    const loserRef = doc(db, 'faceStats', loserId.toString());
+  const updateGlobalEloBatch = async (matches: Array<{winnerId: number, loserId: number}>) => {
+    if (!auth.currentUser || matches.length === 0) return; // wait till signed in
     
+    const uniqueIds = Array.from(new Set(matches.flatMap(m => [m.winnerId, m.loserId])));
+    const refs = uniqueIds.map(id => doc(db, 'faceStats', id.toString()));
+
     try {
       await runTransaction(db, async (transaction) => {
-        const winnerDoc = await transaction.get(winnerRef);
-        const loserDoc = await transaction.get(loserRef);
+        const docs = await Promise.all(refs.map(ref => transaction.get(ref)));
         
-        const currentWinnerElo = winnerDoc.exists() ? winnerDoc.data().elo : 1200;
-        const currentWinnerMatches = winnerDoc.exists() ? winnerDoc.data().matches : 0;
+        const currentData: Record<number, {elo: number, matches: number, exists: boolean}> = {};
+        docs.forEach((docSnap, i) => {
+          const id = uniqueIds[i];
+          if (docSnap.exists()) {
+            currentData[id] = { elo: docSnap.data().elo, matches: docSnap.data().matches || 0, exists: true };
+          } else {
+            currentData[id] = { elo: 1200, matches: 0, exists: false };
+          }
+        });
         
-        const currentLoserElo = loserDoc.exists() ? loserDoc.data().elo : 1200;
-        const currentLoserMatches = loserDoc.exists() ? loserDoc.data().matches : 0;
+        matches.forEach(({ winnerId, loserId }) => {
+          const currentWinnerElo = currentData[winnerId].elo;
+          const currentLoserElo = currentData[loserId].elo;
+          
+          const expectedWinner = 1 / (1 + Math.pow(10, (currentLoserElo - currentWinnerElo) / 400));
+          const expectedLoser = 1 / (1 + Math.pow(10, (currentWinnerElo - currentLoserElo) / 400));
+          
+          const k = 32;
+          currentData[winnerId].elo = Math.round(currentWinnerElo + k * (1 - expectedWinner));
+          currentData[winnerId].matches += 1;
+          
+          currentData[loserId].elo = Math.round(currentLoserElo + k * (0 - expectedLoser));
+          currentData[loserId].matches += 1;
+        });
         
-        const expectedWinner = 1 / (1 + Math.pow(10, (currentLoserElo - currentWinnerElo) / 400));
-        const expectedLoser = 1 / (1 + Math.pow(10, (currentWinnerElo - currentLoserElo) / 400));
-        
-        const k = 32;
-        const newGlobalWinnerElo = Math.round(currentWinnerElo + k * (1 - expectedWinner));
-        const newGlobalLoserElo = Math.round(currentLoserElo + k * (0 - expectedLoser));
-        
-        if (!winnerDoc.exists()) {
-          transaction.set(winnerRef, { elo: newGlobalWinnerElo, matches: currentWinnerMatches + 1, updatedAt: serverTimestamp() });
-        } else {
-          transaction.update(winnerRef, { elo: newGlobalWinnerElo, matches: currentWinnerMatches + 1, updatedAt: serverTimestamp() });
-        }
-        
-        if (!loserDoc.exists()) {
-          transaction.set(loserRef, { elo: newGlobalLoserElo, matches: currentLoserMatches + 1, updatedAt: serverTimestamp() });
-        } else {
-          transaction.update(loserRef, { elo: newGlobalLoserElo, matches: currentLoserMatches + 1, updatedAt: serverTimestamp() });
-        }
+        uniqueIds.forEach((id, i) => {
+          const ref = refs[i];
+          const data = currentData[id];
+          if (!data.exists) {
+            transaction.set(ref, { elo: data.elo, matches: data.matches, updatedAt: serverTimestamp() });
+          } else {
+            transaction.update(ref, { elo: data.elo, matches: data.matches, updatedAt: serverTimestamp() });
+          }
+        });
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'faceStats');
@@ -1194,9 +1205,16 @@ export default function App() {
       [loserId]: newLoserElo
     }));
     
-    // Only update global leaderboard if 250ms have passed since the last pick
+    // Only queue update if 250ms have passed since the last pick
     if (lastPickTime === 0 || timeSinceLastPick >= 250) {
-      updateGlobalElo(winnerId, loserId);
+      setPendingMatches(prev => {
+        const next = [...prev, { winnerId, loserId }];
+        if (next.length >= 2) {
+          updateGlobalEloBatch(next);
+          return [];
+        }
+        return next;
+      });
     }
     
     setLastPickTime(now);
@@ -1466,7 +1484,7 @@ export default function App() {
                 <li><strong>R<sub>A</sub></strong> and <strong>R<sub>B</sub></strong>: The current ratings of the two faces.</li>
               </ul>
               <p>
-                Once the winner is chosen, their new rating is updated using a <strong>K-factor</strong> (set to 32 in your code), which determines how volatile the rankings are:
+                Once the winner is chosen, their new rating is updated using a <strong>K-factor</strong>, which determines how volatile the rankings are:
               </p>
               <div className="bg-gray-100 border-4 border-black p-4 md:p-6 text-center text-xl font-bold font-serif overflow-x-auto flex justify-center">
                 R'<sub>A</sub>&nbsp;=&nbsp;R<sub>A</sub>&nbsp;+&nbsp;K(S<sub>A</sub>&nbsp;-&nbsp;E<sub>A</sub>)
