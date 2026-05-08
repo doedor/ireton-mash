@@ -1068,7 +1068,7 @@ export default function App() {
       setAuthError(null);
       const fetchGlobalLeaderboard = async () => {
         try {
-          const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(500));
+          const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(200));
           const snapshot = await getDocs(q);
           const newGlobalElos: Record<number, number> = {};
           snapshot.forEach(docSnap => {
