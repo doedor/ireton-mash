@@ -1068,12 +1068,21 @@ export default function App() {
       setAuthError(null);
       const fetchGlobalLeaderboard = async () => {
         try {
-          const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(200));
-          const snapshot = await getDocs(q);
+          const snapshot = await getDocs(collection(db, 'faceStatsBuckets'));
           const newGlobalElos: Record<number, number> = {};
+          
           snapshot.forEach(docSnap => {
-            newGlobalElos[parseInt(docSnap.id, 10)] = docSnap.data().elo;
+            const data = docSnap.data();
+            Object.entries(data).forEach(([key, val]) => {
+              if (key === 'updatedAt') return;
+              const id = parseInt(key, 10);
+              const faceData = val as any;
+              if (!isNaN(id) && faceData && typeof faceData.elo === 'number') {
+                newGlobalElos[id] = faceData.elo;
+              }
+            });
           });
+          
           setGlobalElos(newGlobalElos);
           localStorage.setItem('facemash_global_elos', JSON.stringify(newGlobalElos));
           
@@ -1154,22 +1163,36 @@ export default function App() {
         deltas[loserId] = (deltas[loserId] || 0) + Math.round(k * (0 - expectedLoser));
       });
 
-      // Pure writes — zero reads
+      // Pure writes — zero reads using buckets
       const batch = writeBatch(db);
-      Object.entries(deltas).forEach(([id, delta]) => {
+      const bucketUpdates: Record<string, Record<string, any>> = {};
+
+      Object.entries(deltas).forEach(([idStr, delta]) => {
         if (delta === 0) return;
+        const id = parseInt(idStr, 10);
+        const bucketId = Math.floor(id / 100).toString();
         
-        const ref = doc(db, 'faceStats', id);
-        batch.set(ref, {
+        if (!bucketUpdates[bucketId]) {
+          bucketUpdates[bucketId] = {};
+        }
+
+        const matchesCount = matches.filter(m => m.winnerId === id || m.loserId === id).length;
+        
+        bucketUpdates[bucketId][idStr] = {
           elo: increment(delta),
-          matches: increment(matches.filter(m => m.winnerId === +id || m.loserId === +id).length),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+          matches: increment(matchesCount)
+        };
+      });
+
+      Object.entries(bucketUpdates).forEach(([bucketId, updates]) => {
+        const ref = doc(db, 'faceStatsBuckets', bucketId);
+        updates['updatedAt'] = serverTimestamp();
+        batch.set(ref, updates, { merge: true });
       });
       
       await batch.commit();
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'faceStats');
+      handleFirestoreError(err, OperationType.WRITE, 'faceStatsBuckets');
     }
   };
 
@@ -1508,4 +1531,5 @@ export default function App() {
     </div>
   );
 }
+
 
