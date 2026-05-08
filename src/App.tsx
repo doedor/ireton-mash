@@ -1390,6 +1390,7 @@ export default function App() {
                       })
                       .filter(item => item.face?.gender === (leaderboardGender === 'boys' ? 'boy' : 'girl'))
                       .sort((a, b) => b.elo - a.elo)
+                      .slice(0, 99)
                       .map((item, index) => (
                         <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4 bg-gray-50">
                           <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
