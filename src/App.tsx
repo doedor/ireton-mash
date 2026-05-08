@@ -1004,6 +1004,7 @@ export default function App() {
   const [elos, setElos] = useState<Record<number, number>>({});
   const [currentPair, setCurrentPair] = useState<[Face, Face] | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showMathModal, setShowMathModal] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('local');
   const [leaderboardGender, setLeaderboardGender] = useState<Filter>('boys');
   const [globalElos, setGlobalElos] = useState<Record<number, number>>({});
@@ -1184,7 +1185,7 @@ export default function App() {
     <div className="min-h-screen bg-white text-black font-mono selection:bg-black selection:text-white flex flex-col items-center p-4">
       <header className="mb-8 mt-4 md:mt-12 text-center max-w-2xl relative">
         <h1 className="text-5xl md:text-6xl font-black uppercase tracking-widest relative inline-block">
-          IRETONMASH
+          FACEMASH (iretonmash)
           <div className="absolute -top-4 -right-12 md:-top-6 md:-right-24 z-10">
             <div className="bg-white text-black px-3 py-2 border-4 border-black text-xs font-black uppercase transform rotate-12 hover:rotate-0 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group relative cursor-help">
               <span className="whitespace-nowrap">Coming Soon</span>
@@ -1418,6 +1419,52 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {showMathModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-white border-8 border-black p-6 md:p-10 max-w-2xl w-full shadow-[16px_16px_0px_0px_rgba(255,255,255,1)] relative max-h-[90vh] overflow-y-auto">
+            <button 
+              className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center border-4 border-black font-black text-xl hover:bg-black hover:text-white transition-colors z-10 bg-white"
+              onClick={() => setShowMathModal(false)}
+            >
+              X
+            </button>
+            <h2 className="text-4xl font-black uppercase mb-6 border-b-4 border-black pb-4 pr-16">The Math</h2>
+            <div className="space-y-6 text-lg font-medium leading-relaxed">
+              <p>
+                The probability of a face winning is calculated using this formula:
+              </p>
+              <div className="bg-gray-100 border-4 border-black p-4 md:p-6 text-center text-xl font-bold font-serif whitespace-nowrap overflow-x-auto flex justify-center">
+                E<sub>A</sub>&nbsp;=&nbsp;1&nbsp;/&nbsp;(1&nbsp;+&nbsp;10<sup>(R<sub>B</sub>&nbsp;-&nbsp;R<sub>A</sub>)&nbsp;/&nbsp;400</sup>)
+              </div>
+              <ul className="list-disc list-inside space-y-2">
+                <li><strong>E<sub>A</sub></strong>: The expected score for Face A.</li>
+                <li><strong>R<sub>A</sub></strong> and <strong>R<sub>B</sub></strong>: The current ratings of the two faces.</li>
+              </ul>
+              <p>
+                Once the winner is chosen, their new rating is updated using a <strong>K-factor</strong> (set to 32 in your code), which determines how volatile the rankings are:
+              </p>
+              <div className="bg-gray-100 border-4 border-black p-4 md:p-6 text-center text-xl font-bold font-serif overflow-x-auto flex justify-center">
+                R'<sub>A</sub>&nbsp;=&nbsp;R<sub>A</sub>&nbsp;+&nbsp;K(S<sub>A</sub>&nbsp;-&nbsp;E<sub>A</sub>)
+              </div>
+              <ul className="list-disc list-inside space-y-2">
+                <li><strong>S<sub>A</sub></strong>: 1 if they won, 0 if they lost.</li>
+              </ul>
+              <p className="border-l-4 border-black pl-4 italic">
+                If a "low-ranked" face beats a "high-ranked" face, they gain significantly more points than if a favorite wins.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={() => setShowMathModal(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-white text-black font-black text-3xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all z-40 flex items-center justify-center rounded-full"
+        title="The Math"
+      >
+        ?
+      </button>
     </div>
   );
 }
