@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { RotateCcw, Globe, Home } from 'lucide-react';
 import { db, auth } from './firebase';
-import { doc, getDoc, setDoc, runTransaction, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, runTransaction, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 
 export type Gender = 'boy' | 'girl';
 
@@ -1052,22 +1052,26 @@ export default function App() {
       }
       setIsLoadingGlobal(true);
       setAuthError(null);
-      const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(500));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const newGlobalElos: Record<number, number> = {};
-        snapshot.forEach(docSnap => {
-           newGlobalElos[parseInt(docSnap.id, 10)] = docSnap.data().elo;
-        });
-        setGlobalElos(newGlobalElos);
-        setIsLoadingGlobal(false);
-      }, (err) => {
-        setIsLoadingGlobal(false);
-        setAuthError(err instanceof Error ? err.message : String(err));
-        setTimeout(() => {
-          handleFirestoreError(err, OperationType.LIST, 'faceStats');
-        }, 0);
-      });
-      return () => unsubscribe();
+      const fetchGlobalLeaderboard = async () => {
+        try {
+          const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(500));
+          const snapshot = await getDocs(q);
+          const newGlobalElos: Record<number, number> = {};
+          snapshot.forEach(docSnap => {
+            newGlobalElos[parseInt(docSnap.id, 10)] = docSnap.data().elo;
+          });
+          setGlobalElos(newGlobalElos);
+          setIsLoadingGlobal(false);
+        } catch (err) {
+          setIsLoadingGlobal(false);
+          setAuthError(err instanceof Error ? err.message : String(err));
+          setTimeout(() => {
+            handleFirestoreError(err, OperationType.LIST, 'faceStats');
+          }, 0);
+        }
+      };
+      
+      fetchGlobalLeaderboard();
     }
   }, [showModal, leaderboardTab, isAuthenticated]);
 
@@ -1170,7 +1174,7 @@ export default function App() {
       [loserId]: newLoserElo
     }));
     
-    // Only update global leaderboard if 0.25 seconds have passed since the last pick
+    // Only update global leaderboard if 250ms have passed since the last pick
     if (lastPickTime === 0 || timeSinceLastPick >= 250) {
       updateGlobalElo(winnerId, loserId);
     }
