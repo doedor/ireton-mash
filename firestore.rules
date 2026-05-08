@@ -23,11 +23,6 @@ service cloud.firestore {
           && data.updatedAt == request.time;
     }
 
-    match /faceStatsBuckets/{bucketId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
     match /faceStats/{faceId} {
       allow get: if isSignedIn() && isValidId(faceId);
       // For global leaderboard, force query bounding
