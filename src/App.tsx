@@ -1005,6 +1005,7 @@ export default function App() {
   const [currentPair, setCurrentPair] = useState<[Face, Face] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('local');
+  const [leaderboardGender, setLeaderboardGender] = useState<Filter>('boys');
   const [globalElos, setGlobalElos] = useState<Record<number, number>>({});
   const [isLoadingGlobal, setIsLoadingGlobal] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -1050,7 +1051,7 @@ export default function App() {
       }
       setIsLoadingGlobal(true);
       setAuthError(null);
-      const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(100));
+      const q = query(collection(db, 'faceStats'), where('elo', '>=', 0), orderBy('elo', 'desc'), limit(500));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const newGlobalElos: Record<number, number> = {};
         snapshot.forEach(docSnap => {
@@ -1268,19 +1269,35 @@ export default function App() {
             <div className="flex flex-col md:flex-row md:items-end justify-between border-b-4 border-black pb-4 mb-6 gap-4 pr-16 md:pr-0">
               <div>
                 <h2 className="text-5xl font-black uppercase">Leaderboard</h2>
-                <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={() => setLeaderboardTab('local')}
-                    className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'local' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
-                  >
-                    <Home size={18} strokeWidth={3} /> Local
-                  </button>
-                  <button
-                    onClick={() => setLeaderboardTab('global')}
-                    className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'global' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
-                  >
-                    <Globe size={18} strokeWidth={3} /> Global
-                  </button>
+                <div className="flex flex-col gap-2 mt-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setLeaderboardTab('local')}
+                      className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'local' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
+                    >
+                      <Home size={18} strokeWidth={3} /> Local
+                    </button>
+                    <button
+                      onClick={() => setLeaderboardTab('global')}
+                      className={`flex items-center gap-2 px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardTab === 'global' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
+                    >
+                      <Globe size={18} strokeWidth={3} /> Global
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setLeaderboardGender('boys')}
+                      className={`px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardGender === 'boys' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
+                    >
+                      Boys
+                    </button>
+                    <button
+                      onClick={() => setLeaderboardGender('girls')}
+                      className={`px-4 py-2 border-4 border-black font-black uppercase transition-all ${leaderboardGender === 'girls' ? 'bg-black text-white shadow-inner' : 'bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}`}
+                    >
+                      Girls
+                    </button>
+                  </div>
                 </div>
               </div>
               
@@ -1311,6 +1328,7 @@ export default function App() {
                         const face = faces.find(f => f.id === id);
                         return { id, elo, face };
                       })
+                      .filter(item => item.face?.gender === (leaderboardGender === 'boys' ? 'boy' : 'girl'))
                       .sort((a, b) => b.elo - a.elo)
                       .map((item, index) => (
                         <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4">
@@ -1338,7 +1356,7 @@ export default function App() {
 
             {leaderboardTab === 'global' && (
               <>
-                <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide. The more you choose, the more accurate the rankings</p>
+                <p className="text-sm font-bold text-gray-500 uppercase mb-4">Aggregated from all users worldwide</p>
                 {authError ? (
                   <div className="border-4 border-black p-6 bg-yellow-100 mb-6">
                     <p className="text-xl font-bold uppercase mb-4">Leaderboard Error</p>
@@ -1370,6 +1388,7 @@ export default function App() {
                         const face = faces.find(f => f.id === id);
                         return { id, elo, face };
                       })
+                      .filter(item => item.face?.gender === (leaderboardGender === 'boys' ? 'boy' : 'girl'))
                       .sort((a, b) => b.elo - a.elo)
                       .map((item, index) => (
                         <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4 bg-gray-50">
