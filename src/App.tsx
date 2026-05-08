@@ -1157,6 +1157,8 @@ export default function App() {
       // Pure writes — zero reads
       const batch = writeBatch(db);
       Object.entries(deltas).forEach(([id, delta]) => {
+        if (delta === 0) return;
+        
         const ref = doc(db, 'faceStats', id);
         batch.set(ref, {
           elo: increment(delta),
@@ -1205,7 +1207,7 @@ export default function App() {
     if (lastPickTime === 0 || timeSinceLastPick >= 250) {
       setPendingMatches(prev => {
         const next = [...prev, { winnerId, loserId }];
-        if (next.length >= 10) {
+        if (next.length >= 50) {
           updateGlobalEloIncremental(next);
           return [];
         }
@@ -1480,7 +1482,7 @@ export default function App() {
                 <li><strong>R<sub>A</sub></strong> and <strong>R<sub>B</sub></strong>: The current ratings of the two faces.</li>
               </ul>
               <p>
-                Once the winner is chosen, their new rating is updated using a <strong>K-factor</strong>, which determines how volatile the rankings are:
+                Once the winner is chosen, their new rating is updated using a <strong>K-factor</strong> (set to 32 in your code), which determines how volatile the rankings are:
               </p>
               <div className="bg-gray-100 border-4 border-black p-4 md:p-6 text-center text-xl font-bold font-serif overflow-x-auto flex justify-center">
                 R'<sub>A</sub>&nbsp;=&nbsp;R<sub>A</sub>&nbsp;+&nbsp;K(S<sub>A</sub>&nbsp;-&nbsp;E<sub>A</sub>)
@@ -1506,5 +1508,4 @@ export default function App() {
     </div>
   );
 }
-
 
