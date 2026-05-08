@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { RotateCcw, Globe, Home } from 'lucide-react';
 import { db, auth } from './firebase';
-import { doc, getDoc, getDocs, setDoc, runTransaction, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, runTransaction, serverTimestamp, collection, query, orderBy, limit, where, writeBatch, increment } from 'firebase/firestore';
 
 export type Gender = 'boy' | 'girl';
 
@@ -1059,8 +1059,8 @@ export default function App() {
       }
 
       const now = Date.now();
-      // Only fetch if we haven't fetched in the last 5 minutes (300,000 ms)
-      if (now - lastGlobalFetchTime < 300000 && Object.keys(globalElos).length > 0) {
+      // Only fetch if we haven't fetched in the last 30 minutes (1,800,000 ms)
+      if (now - lastGlobalFetchTime < 1800000 && Object.keys(globalElos).length > 0) {
         return; // Use cached data
       }
 
@@ -1135,55 +1135,51 @@ export default function App() {
     pickNewPair(filter);
   }, [filter]);
 
-  const updateGlobalEloBatch = async (matches: Array<{winnerId: number, loserId: number}>) => {
-    if (!auth.currentUser || matches.length === 0) return; // wait till signed in
-    
-    const uniqueIds = Array.from(new Set(matches.flatMap(m => [m.winnerId, m.loserId])));
-    const refs = uniqueIds.map(id => doc(db, 'faceStats', id.toString()));
+  const updateGlobalEloIncremental = async (matches: Array<{winnerId: number, loserId: number}>) => {
+    if (!auth.currentUser || matches.length === 0) return;
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const docs = await Promise.all(refs.map(ref => transaction.get(ref)));
+      // Use local elos to compute deltas — no reads needed
+      const deltas: Record<number, number> = {};
+      
+      matches.forEach(({ winnerId, loserId }) => {
+        const winnerElo = elos[winnerId] || 1200;
+        const loserElo = elos[loserId] || 1200;
         
-        const currentData: Record<number, {elo: number, matches: number, exists: boolean}> = {};
-        docs.forEach((docSnap, i) => {
-          const id = uniqueIds[i];
-          if (docSnap.exists()) {
-            currentData[id] = { elo: docSnap.data().elo, matches: docSnap.data().matches || 0, exists: true };
-          } else {
-            currentData[id] = { elo: 1200, matches: 0, exists: false };
-          }
-        });
+        const expectedWinner = 1 / (1 + Math.pow(10, (loserElo - winnerElo) / 400));
+        const expectedLoser = 1 / (1 + Math.pow(10, (winnerElo - loserElo) / 400));
+        const k = 32;
         
-        matches.forEach(({ winnerId, loserId }) => {
-          const currentWinnerElo = currentData[winnerId].elo;
-          const currentLoserElo = currentData[loserId].elo;
-          
-          const expectedWinner = 1 / (1 + Math.pow(10, (currentLoserElo - currentWinnerElo) / 400));
-          const expectedLoser = 1 / (1 + Math.pow(10, (currentWinnerElo - currentLoserElo) / 400));
-          
-          const k = 32;
-          currentData[winnerId].elo = Math.round(currentWinnerElo + k * (1 - expectedWinner));
-          currentData[winnerId].matches += 1;
-          
-          currentData[loserId].elo = Math.round(currentLoserElo + k * (0 - expectedLoser));
-          currentData[loserId].matches += 1;
-        });
-        
-        uniqueIds.forEach((id, i) => {
-          const ref = refs[i];
-          const data = currentData[id];
-          if (!data.exists) {
-            transaction.set(ref, { elo: data.elo, matches: data.matches, updatedAt: serverTimestamp() });
-          } else {
-            transaction.update(ref, { elo: data.elo, matches: data.matches, updatedAt: serverTimestamp() });
-          }
-        });
+        deltas[winnerId] = (deltas[winnerId] || 0) + Math.round(k * (1 - expectedWinner));
+        deltas[loserId] = (deltas[loserId] || 0) + Math.round(k * (0 - expectedLoser));
       });
+
+      // Pure writes — zero reads
+      const batch = writeBatch(db);
+      Object.entries(deltas).forEach(([id, delta]) => {
+        const ref = doc(db, 'faceStats', id);
+        batch.set(ref, {
+          elo: increment(delta),
+          matches: increment(matches.filter(m => m.winnerId === +id || m.loserId === +id).length),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      });
+      
+      await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'faceStats');
     }
-  }
+  };
+
+  useEffect(() => {
+    const handleUnload = () => {
+      if (pendingMatches.length > 0) {
+        updateGlobalEloIncremental(pendingMatches);
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [pendingMatches]);
 
   const handleChoice = (winnerId: number, loserId: number) => {
     const now = Date.now();
@@ -1209,8 +1205,8 @@ export default function App() {
     if (lastPickTime === 0 || timeSinceLastPick >= 250) {
       setPendingMatches(prev => {
         const next = [...prev, { winnerId, loserId }];
-        if (next.length >= 2) {
-          updateGlobalEloBatch(next);
+        if (next.length >= 10) {
+          updateGlobalEloIncremental(next);
           return [];
         }
         return next;
@@ -1372,7 +1368,7 @@ export default function App() {
                         return { id, elo, face };
                       })
                       .filter(item => item.face?.gender === (leaderboardGender === 'boys' ? 'boy' : 'girl'))
-                      .sort((a, b) => b.elo - a.elo)
+                      .sort((a, b) => Number(b.elo) - Number(a.elo))
                       .map((item, index) => (
                         <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4">
                           <div className="text-3xl font-black w-12 text-center shrink-0">#{index + 1}</div>
@@ -1432,7 +1428,7 @@ export default function App() {
                         return { id, elo, face };
                       })
                       .filter(item => item.face?.gender === (leaderboardGender === 'boys' ? 'boy' : 'girl'))
-                      .sort((a, b) => b.elo - a.elo)
+                      .sort((a, b) => Number(b.elo) - Number(a.elo))
                       .slice(0, 99)
                       .map((item, index) => (
                         <div key={item.id} className="flex items-center gap-4 border-4 border-black p-4 bg-gray-50">
@@ -1510,3 +1506,5 @@ export default function App() {
     </div>
   );
 }
+
+
